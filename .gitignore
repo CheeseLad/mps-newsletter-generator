@@ -1,0 +1,6 @@
+*.html
+*.csv
+*.zip
+__pycache__/
+old/
+tmp/
