@@ -1,6 +1,7 @@
 *.html
 *.csv
 *.zip
+*.env
 __pycache__/
 old/
 tmp/
