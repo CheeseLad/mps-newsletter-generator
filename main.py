@@ -9,6 +9,36 @@ import zipfile
 from config import social_data, image_mappings
 import re
 import datetime
+from postimages_login import login_to_postimages, get_api_key, upload_image
+import hashlib
+
+def load_image_cache():
+    """Load the image upload cache from file"""
+    cache_file = 'image_cache.json'
+    if os.path.exists(cache_file):
+        try:
+            with open(cache_file, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Warning: Could not load cache file: {e}")
+    return {}
+
+def save_image_cache(cache):
+    """Save the image upload cache to file"""
+    cache_file = 'image_cache.json'
+    try:
+        with open(cache_file, 'w') as f:
+            json.dump(cache, f, indent=2)
+    except Exception as e:
+        print(f"Warning: Could not save cache file: {e}")
+
+def get_file_hash(file_path):
+    """Calculate SHA256 hash of a file"""
+    hash_sha256 = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_sha256.update(chunk)
+    return hash_sha256.hexdigest()
 
 def main():
     zip_path = sys.argv[1]
@@ -28,14 +58,92 @@ def main():
                 html_file_path = os.path.join(root, file)
             elif file.lower().endswith('.png') or file.lower().endswith('.jpg') or file.lower().endswith('.jpeg') or file.lower().endswith('.gif'):
                 images_list.append(os.path.join(root, file))
+    
+    # Load image cache
+    print("=" * 50)
+    print("Loading image cache...")
+    image_cache = load_image_cache()
+    print(f"Cache loaded with {len(image_cache)} entries")
+    
+    # Upload images to postimages.org
+    print("=" * 50)
+    print("Processing images for upload")
+    print("=" * 50)
+    
+    # Check cache first, then upload if needed
+    image_upload_mapping = {}
+    images_to_upload = []
+    
+    for image_path in images_list:
+        original_filename = os.path.basename(image_path)
+        file_hash = get_file_hash(image_path)
+        
+        # Check if image is in cache with same hash
+        if file_hash in image_cache:
+            cached_url = image_cache[file_hash]
+            image_upload_mapping[original_filename] = cached_url
+            print(f"✅ Cached: {original_filename} -> {cached_url}")
+        else:
+            images_to_upload.append((image_path, original_filename, file_hash))
+            print(f"📤 Need to upload: {original_filename}")
+    
+    # Upload new images if any
+    if images_to_upload:
+        print(f"\nUploading {len(images_to_upload)} new images...")
+        
+        # Login to postimages.org
+        session = login_to_postimages()
+        if not session:
+            print("❌ Failed to login to postimages.org. Exiting.")
+            return
+        
+        # Get API key
+        api_key = get_api_key(session)
+        if not api_key:
+            print("❌ Failed to get API key. Exiting.")
+            return
+        
+        # Upload new images
+        for image_path, original_filename, file_hash in images_to_upload:
+            print(f"\nUploading: {image_path}")
+            upload_result = upload_image(session, api_key, image_path)
+            if upload_result and upload_result.get('direct_link'):
+                uploaded_url = upload_result['direct_link']
+                image_upload_mapping[original_filename] = uploaded_url
+                # Add to cache
+                image_cache[file_hash] = uploaded_url
+                print(f"✅ Uploaded: {original_filename} -> {uploaded_url}")
+            else:
+                print(f"❌ Failed to upload: {image_path}")
+        
+        # Save updated cache
+        save_image_cache(image_cache)
+        print(f"\nCache updated with {len(images_to_upload)} new entries")
+    else:
+        print("\n🎉 All images found in cache! No uploads needed.")
+    
+    print(f"\nTotal images processed: {len(image_upload_mapping)}")
+    print("Image mapping:", image_upload_mapping)
                 
-    finished_html = generate_email(html_file_path)
+    finished_html = generate_email(html_file_path, image_upload_mapping)
     print(images_list)
 
-def generate_email(html_file_path):
+def generate_email(html_file_path, image_upload_mapping=None):
     with open(html_file_path, "r", encoding="utf-8") as file:
         content = file.read()
-        content = content.replace('src="images/image', 'src="tmp/images/image')
+        
+        # Replace local image paths with uploaded URLs if mapping is provided
+        if image_upload_mapping:
+            for local_filename, uploaded_url in image_upload_mapping.items():
+                # Replace various possible image path patterns
+                content = content.replace(f'src="images/{local_filename}"', f'src="{uploaded_url}"')
+                content = content.replace(f'src="tmp/images/{local_filename}"', f'src="{uploaded_url}"')
+                content = content.replace(f'src="./images/{local_filename}"', f'src="{uploaded_url}"')
+                content = content.replace(f'src="../images/{local_filename}"', f'src="{uploaded_url}"')
+                print(f"Replaced image reference: {local_filename} -> {uploaded_url}")
+        else:
+            # Fallback to original behavior
+            content = content.replace('src="images/image', 'src="tmp/images/image')
         data_content = content.split("<body>")[0].split("</body>")[0]
         sections = re.split(r'<p class="c\d+"><span class="c\d+ c\d+">&mdash; ', data_content)
         print("Total sections found:", len(sections))

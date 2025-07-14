@@ -2,6 +2,7 @@
 *.csv
 *.zip
 *.env
+*.json
 __pycache__/
 old/
 tmp/
