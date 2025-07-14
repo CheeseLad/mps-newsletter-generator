@@ -23,26 +23,26 @@ image_mappings = {
 social_data = [
     {
         "social_link": "https://www.facebook.com/dcumps",
-        "social_image": "https://i.imgur.com/pTUDTbG.png"
+        "social_image": "./assets/icons/mc_facebook.png"
     },
     {
         "social_link": "https://x.com/dcumps",
-        "social_image": "https://i.imgur.com/ch2PGxH.png"
+        "social_image": "./assets/icons/mc_twitter.png"
     },
     {
         "social_link": "https://www.instagram.com/dcumps",
-        "social_image": "https://i.imgur.com/hUeaTgP.png"
+        "social_image": "./assets/icons/mc_instagram.png"
     },
     {
         "social_link": "https://dcumps.ie",
-        "social_image": "https://i.imgur.com/N3oOCKY.png"
+        "social_image": "./assets/icons/mc_link.png"
     },
     {
         "social_link": "https://www.youtube.com/user/dcumps",
-        "social_image": "https://i.imgur.com/Ui6ofWj.png"
+        "social_image": "./assets/icons/mc_youtube.png"
     },
     {
         "social_link": "https://www.tiktok.com/@dcumps",
-        "social_image": "https://i.imgur.com/N3oOCKY.png"
+        "social_image": "./assets/icons/mc_link.png"
     },
 ]

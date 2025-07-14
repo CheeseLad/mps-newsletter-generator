@@ -11,6 +11,8 @@ import re
 import datetime
 from postimages_login import login_to_postimages, get_api_key, upload_image
 import hashlib
+import string
+import random
 
 def load_image_cache():
     """Load the image upload cache from file"""
@@ -40,12 +42,79 @@ def get_file_hash(file_path):
             hash_sha256.update(chunk)
     return hash_sha256.hexdigest()
 
+def generate_random_string(length=6):
+    """Generate a random string of specified length"""
+    characters = string.ascii_letters + string.digits
+    return ''.join(random.choice(characters) for _ in range(length))
+
+def cleanup_temp_directory(tmp_dir):
+    """Clean up temporary directory with retry logic for Windows and Google Drive"""
+    import time
+    
+    for attempt in range(5):  # Try up to 5 times for Google Drive
+        try:
+            if os.path.exists(tmp_dir):
+                # Force remove read-only files on Windows
+                for root, dirs, files in os.walk(tmp_dir, topdown=False):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        try:
+                            os.chmod(file_path, 0o777)  # Make file writable
+                        except:
+                            pass
+                    for dir in dirs:
+                        dir_path = os.path.join(root, dir)
+                        try:
+                            os.chmod(dir_path, 0o777)  # Make directory writable
+                        except:
+                            pass
+                
+                # Try to remove the directory
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+                
+                # Check if directory still exists
+                if not os.path.exists(tmp_dir):
+                    print(f"✅ Cleaned up temporary directory: {tmp_dir}")
+                    return True
+                else:
+                    # If directory still exists, try to remove individual files
+                    print(f"⚠️ Directory still exists, trying individual file removal...")
+                    for root, dirs, files in os.walk(tmp_dir, topdown=False):
+                        for file in files:
+                            try:
+                                os.remove(os.path.join(root, file))
+                            except:
+                                pass
+                        for dir in dirs:
+                            try:
+                                os.rmdir(os.path.join(root, dir))
+                            except:
+                                pass
+                    # Final attempt to remove the directory
+                    try:
+                        os.rmdir(tmp_dir)
+                        print(f"✅ Cleaned up temporary directory: {tmp_dir}")
+                        return True
+                    except:
+                        pass
+                        
+        except Exception as e:
+            if attempt < 4:  # Not the last attempt
+                print(f"⚠️ Cleanup attempt {attempt + 1} failed, retrying in 2 seconds... ({e})")
+                time.sleep(2)  # Wait longer for Google Drive sync
+            else:
+                print(f"❌ Failed to clean up temporary directory {tmp_dir} after 5 attempts: {e}")
+                print(f"💡 You may need to manually delete: {tmp_dir}")
+                return False
+    return False
+
 def main():
     zip_path = sys.argv[1]
-    tmp_dir = './tmp'
+    tmp_dir = f'./tmp_{generate_random_string(6)}'
     html_file_path = None
 
     os.makedirs(tmp_dir, exist_ok=True)
+    print(f"Created temporary directory: {tmp_dir}")
 
     with zipfile.ZipFile(zip_path, 'r') as zip_ref:
         zip_ref.extractall(tmp_dir)
@@ -74,8 +143,23 @@ def main():
     image_upload_mapping = {}
     images_to_upload = []
     
-    for image_path in images_list:
-        original_filename = os.path.basename(image_path)
+    # Add config images to the upload list
+    config_images = []
+    
+    # Add header images from config
+    for position, image_path in image_mappings.items():
+        if os.path.exists(image_path):
+            config_images.append((image_path, f"config_{position}"))
+    
+    # Add social icons from config
+    for social in social_data:
+        if os.path.exists(social["social_image"]):
+            config_images.append((social["social_image"], f"config_social_{os.path.basename(social['social_image'])}"))
+    
+    # Combine zip images and config images
+    all_images = [(path, os.path.basename(path)) for path in images_list] + config_images
+    
+    for image_path, original_filename in all_images:
         file_hash = get_file_hash(image_path)
         
         # Check if image is in cache with same hash
@@ -123,12 +207,34 @@ def main():
         print("\n🎉 All images found in cache! No uploads needed.")
     
     print(f"\nTotal images processed: {len(image_upload_mapping)}")
-    print("Image mapping:", image_upload_mapping)
+    #print("Image mapping:", image_upload_mapping)
+    
+    # Update image_mappings with uploaded URLs for config images
+    updated_image_mappings = image_mappings.copy()
+    for position, local_path in image_mappings.items():
+        config_key = f"config_{position}"
+        if config_key in image_upload_mapping:
+            updated_image_mappings[position] = image_upload_mapping[config_key]
+            print(f"✅ Updated mapping: {position} -> {image_upload_mapping[config_key]}")
+    
+    # Update social_data with uploaded URLs
+    updated_social_data = []
+    for social in social_data:
+        updated_social = social.copy()
+        local_path = social["social_image"]
+        config_key = f"config_social_{os.path.basename(local_path)}"
+        if config_key in image_upload_mapping:
+            updated_social["social_image"] = image_upload_mapping[config_key]
+            print(f"✅ Updated social: {os.path.basename(local_path)} -> {image_upload_mapping[config_key]}")
+        updated_social_data.append(updated_social)
                 
-    finished_html = generate_email(html_file_path, image_upload_mapping)
-    print(images_list)
+    finished_html = generate_email(html_file_path, image_upload_mapping, updated_image_mappings, updated_social_data)
+    #print(images_list)
+    
+    # Clean up temporary directory
+    cleanup_temp_directory(tmp_dir)
 
-def generate_email(html_file_path, image_upload_mapping=None):
+def generate_email(html_file_path, image_upload_mapping=None, updated_image_mappings=None, updated_social_data=None):
     with open(html_file_path, "r", encoding="utf-8") as file:
         content = file.read()
         
@@ -186,6 +292,10 @@ def generate_email(html_file_path, image_upload_mapping=None):
     socials = Template(social_template)
     start_template = Template(start)
     end_template = Template(end)
+    
+    # Use updated mappings if provided, otherwise use original
+    final_image_mappings = updated_image_mappings if updated_image_mappings else image_mappings
+    final_social_data = updated_social_data if updated_social_data else social_data
 
     # Render HTML for each section in the JSON data
     rendered_html = ""
@@ -193,12 +303,11 @@ def generate_email(html_file_path, image_upload_mapping=None):
     email_end_text = ""
     for section in final_data["sections"]:
         # Ensure section is a dictionary and access its keys properly
-        print("Processing section:", section["position"])
-        print(image_mappings.get(section["position"], ""))
+        #print(image_mappings.get(section["position"], ""))
         if (isinstance(section, dict) and "content" in section) and section["length"] > 0 and section["position"] not in ["email-start", "email-end"]:
             # Pass the section content into the template as "styledContent"
-            
-            rendered_html += template.render(styledContent=section["content"], header_image=image_mappings.get(section["position"], ""))
+            print("Processing section:", section["position"])
+            rendered_html += template.render(styledContent=section["content"], header_image=final_image_mappings.get(section["position"], ""))
         elif section["position"] == "email-start" or section["position"] == "email-end":
             if section["position"] == "email-start":
                 email_start_text = section["content"]
@@ -206,13 +315,16 @@ def generate_email(html_file_path, image_upload_mapping=None):
                 email_end_text = section["content"]
             
         else:
-            print("Skipping invalid section:", section)
+            if section["length"] == 0:
+                print(f"Skipping section: {section['position']} (not filled in)")
+            else:
+                print("Skipping invalid section:", section)
             
 
 
     social_html = ""
 
-    for social in social_data:
+    for social in final_social_data:
         social_html += socials.render(
             social_link=social["social_link"],
             social_image=social["social_image"]
@@ -220,7 +332,7 @@ def generate_email(html_file_path, image_upload_mapping=None):
         
     start_html = start_template.render(
         email_start=email_start_text,
-        header_image="https://mcusercontent.com/a6300fadb6d053a90ae600e49/images/74b4d2c7-4ad7-82f8-8f41-b279d552422a.png"
+        header_image=final_image_mappings.get("logo")
     )
     
     start_html = start_html.replace('<p class=', '<p dir="ltr" style="color: #F2F2F2;font-family: Helvetica;font-size: 14px;font-weight: bold;text-align: center;margin: 10px 0;padding: 0;mso-line-height-rule: exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;line-height: 150%;" class=')
