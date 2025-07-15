@@ -43,6 +43,6 @@ social_data = [
     },
     {
         "social_link": "https://www.tiktok.com/@dcumps",
-        "social_image": "./assets/icons/mc_link.png"
+        "social_image": "./assets/icons/mc_tiktok.png"
     },
 ]
