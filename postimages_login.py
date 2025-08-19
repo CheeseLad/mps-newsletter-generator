@@ -97,7 +97,7 @@ def login_to_postimages():
         
         print(f"Login response status: {login_response.status_code}")
         print(f"Login response URL: {login_response.url}")
-        print(f"Response headers: {dict(login_response.headers)}")
+        #print(f"Response headers: {dict(login_response.headers)}")
         
         if login_response.status_code == 200:
             if email in login_response.text:
@@ -189,7 +189,7 @@ def upload_image(session, api_key, image_path):
         try:
             result = response.json()
             print("✅ Upload successful!")
-            print(f"Response: {result}")
+            #print(f"Response: {result}")
             if result.get('status') == 'OK' and 'url' in result:
                 image_url = result['url']
                 print(f"📁 File uploaded successfully! URL: {image_url}")
