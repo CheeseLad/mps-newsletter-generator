@@ -251,7 +251,7 @@ def generate_email(html_file_path, image_upload_mapping=None, updated_image_mapp
             # Fallback to original behavior
             content = content.replace('src="images/image', 'src="tmp/images/image')
         data_content = content.split("<body>")[0].split("</body>")[0]
-        sections = re.split(r'<p class="c\d+"><span class="c\d+ c\d+">&mdash; ', data_content)
+        sections = re.split(r'<p class="c\d+"><span class="c\d+">&mdash; ', data_content)
         print("Total sections found:", len(sections))
         
         position_content_list = []
@@ -299,21 +299,23 @@ def generate_email(html_file_path, image_upload_mapping=None, updated_image_mapp
 
     # Render HTML for each section in the JSON data
     rendered_html = ""
+    email_subject_text = ""
     email_start_text = ""
     email_end_text = ""
     for section in final_data["sections"]:
         # Ensure section is a dictionary and access its keys properly
         #print(image_mappings.get(section["position"], ""))
-        if (isinstance(section, dict) and "content" in section) and section["length"] > 0 and section["position"] not in ["email-start", "email-end"]:
+        if (isinstance(section, dict) and "content" in section) and section["length"] > 0 and section["position"] not in ["email-start", "email-end", "email-subject"]:
             # Pass the section content into the template as "styledContent"
             print("Processing section:", section["position"])
             rendered_html += template.render(styledContent=section["content"], header_image=final_image_mappings.get(section["position"], ""))
-        elif section["position"] == "email-start" or section["position"] == "email-end":
+        elif section["position"] == "email-start" or section["position"] == "email-end" or section["position"] == "email-subject":
             if section["position"] == "email-start":
                 email_start_text = section["content"]
             elif section["position"] == "email-end":
                 email_end_text = section["content"]
-            
+            elif section["position"] == "email-subject":
+                email_subject_text = section["content"]
         else:
             if section["length"] == 0:
                 print(f"Skipping section: {section['position']} (not filled in)")
@@ -365,6 +367,7 @@ def generate_email(html_file_path, image_upload_mapping=None, updated_image_mapp
 
 
     print(f"HTML file generated successfully as {filepath}")
+    print(f"Email subject: {email_subject_text}")
     return rendered_html
 
 
