@@ -332,9 +332,16 @@ def generate_email(html_file_path, image_upload_mapping=None, updated_image_mapp
             social_image=social["social_image"]
         )
         
+    # Extract plain text from email_subject_text for the title tag
+    email_subject_plain_text = ""
+    if email_subject_text:
+        soup = BeautifulSoup(email_subject_text, 'html.parser')
+        email_subject_plain_text = soup.get_text().strip()
+    
     start_html = start_template.render(
         email_start=email_start_text,
-        header_image=final_image_mappings.get("logo")
+        header_image=final_image_mappings.get("logo"),
+        email_subject=email_subject_plain_text
     )
     
     start_html = start_html.replace('<p class=', '<p dir="ltr" style="color: #F2F2F2;font-family: Helvetica;font-size: 14px;font-weight: bold;text-align: center;margin: 10px 0;padding: 0;mso-line-height-rule: exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;line-height: 150%;" class=')
@@ -367,7 +374,6 @@ def generate_email(html_file_path, image_upload_mapping=None, updated_image_mapp
 
 
     print(f"HTML file generated successfully as {filepath}")
-    print(f"Email subject: {email_subject_text}")
     return rendered_html
 
 
