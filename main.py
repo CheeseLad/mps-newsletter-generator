@@ -1,6 +1,6 @@
 import json
 from jinja2 import Template
-from templates import start, end, end_after_social, html_template, social_template
+from lib.templates import start, end, end_after_social, html_template, social_template
 from bs4 import BeautifulSoup
 import sys
 import os
@@ -9,7 +9,7 @@ import zipfile
 from config import social_data, image_mappings
 import re
 import datetime
-from postimages_login import login_to_postimages, get_api_key, upload_image
+from lib.postimages_login import login_to_postimages, get_api_key, upload_image
 import hashlib
 import string
 import random
@@ -346,15 +346,25 @@ def generate_email(html_file_path, image_upload_mapping=None, updated_image_mapp
         
     # Output the rendered HTML
     #print(rendered_html)
-    current_date = datetime.datetime.now().strftime("%Y-%m-%d")
-    with open(f"mps-email-{current_date}.html", "w") as output_file:
+    current_datetime = datetime.datetime.now()
+    current_date = current_datetime.strftime("%Y-%m-%d")
+    current_time = current_datetime.strftime("%H-%M-%S")
+    
+    # Create emails directory if it doesn't exist
+    emails_dir = "emails"
+    os.makedirs(emails_dir, exist_ok=True)
+    
+    filename = f"mps-email-{current_date}-{current_time}.html"
+    filepath = os.path.join(emails_dir, filename)
+    
+    with open(filepath, "w") as output_file:
 
         rendered_html = rendered_html.replace('<p class=', '<p dir="ltr" style="color: #F2F2F2;font-family: Helvetica;font-size: 14px;font-weight: bold;text-align: center;margin: 10px 0;padding: 0;mso-line-height-rule: exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;line-height: 150%;" class=')
     
         output_file.write(start_html + rendered_html + end_html + social_html + end_after_social)
 
 
-    print(f"HTML file generated successfully as mps-email-{current_date}.html")
+    print(f"HTML file generated successfully as {filepath}")
     return rendered_html
 
 
