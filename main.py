@@ -250,6 +250,7 @@ def generate_email(html_file_path, image_upload_mapping=None, updated_image_mapp
         else:
             # Fallback to original behavior
             content = content.replace('src="images/image', 'src="tmp/images/image')
+        
         data_content = content.split("<body>")[0].split("</body>")[0]
         sections = re.split(r'<p class="c\d+"><span class="c\d+">&mdash; ', data_content)
         print("Total sections found:", len(sections))
@@ -261,7 +262,29 @@ def generate_email(html_file_path, image_upload_mapping=None, updated_image_mapp
             print("Processing section:", section_content)
             cool = "".join(sections[i].split("</span>")[1:])  # Print the content after </span>
             
-            soup = BeautifulSoup(cool, "html.parser")  # Parse the HTML content
+            # Fix nested image structure by flattening nested spans containing images
+            soup = BeautifulSoup(cool, "html.parser")
+            for img in soup.find_all('img'):
+                # Find the outermost span containing this image
+                parent_span = img.find_parent('span')
+                if parent_span:
+                    # Move the image out of the nested span structure
+                    parent_span.insert_before(img)
+                    # Remove the span if it's now empty
+                    if not parent_span.get_text(strip=True) and not parent_span.find_all('img'):
+                        parent_span.decompose()
+            
+            # Ensure each image is in its own paragraph for vertical stacking
+            for img in soup.find_all('img'):
+                # Check if the image is not already in its own paragraph
+                if img.parent.name != 'p':
+                    # Create a new paragraph for the image
+                    new_p = soup.new_tag('p')
+                    new_p['style'] = 'text-align: center; margin: 10px 0;'
+                    img.wrap(new_p)
+            
+            # Get the cleaned content
+            cool = str(soup)
             
             len_cool = soup.get_text(strip=True)  # Get the text content without HTML tags        
             
@@ -366,7 +389,7 @@ def generate_email(html_file_path, image_upload_mapping=None, updated_image_mapp
     filename = f"mps-email-{current_date}-{current_time}.html"
     filepath = os.path.join(emails_dir, filename)
     
-    with open(filepath, "w") as output_file:
+    with open(filepath, "w", encoding="utf-8") as output_file:
 
         rendered_html = rendered_html.replace('<p class=', '<p dir="ltr" style="color: #F2F2F2;font-family: Helvetica;font-size: 14px;font-weight: bold;text-align: center;margin: 10px 0;padding: 0;mso-line-height-rule: exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;line-height: 150%;" class=')
     

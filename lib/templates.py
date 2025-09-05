@@ -612,7 +612,9 @@ end_after_social = """
                         <td valign="top" class="mcnTextContent" style="padding: 0px 18px 9px;color: #FFFFFF;mso-line-height-rule: exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;word-break: break-word;font-family: Helvetica;font-size: 15px;line-height: 150%;text-align: center;">
 
                             <span style="color:#FFFFFF"><em>Copyright &copy; <i>|2025|</i> <i>|DCUMPS|</i>  All rights reserved.</em><br></span>
-<br>
+                            <span style="color:#FFFFFF">Template created by <a href="https://mailchimp.com" style="mso-line-height-rule: exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;color: #FFFFFF;font-weight: normal;text-decoration: underline;"><span style="color:#FFFFFF">Mailchimp</span></a> | Email generator developed by <a href="https://jakefarrell.ie" style="mso-line-height-rule: exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;color: #FFFFFF;font-weight: normal;text-decoration: underline;"><span style="color:#FFFFFF">Jake Farrell</span></a></span>
+                            <br>
+                            <br>
 Want to change how you receive these emails?<br>
 You can </span><a href="{{ UnsubscribeURL }}" style="mso-line-height-rule: exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;color: #FFFFFF;font-weight: normal;text-decoration: underline;"><span style="color:#FFFFFF">unsubscribe from this list</span></a><span style="color:#FFFFFF">.</span><br>
 &nbsp;
